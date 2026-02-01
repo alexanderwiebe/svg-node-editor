@@ -5,8 +5,8 @@
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/shyim/devcontainers-features/bun:0": {}
   },
-  "forwardPorts": [3000, 4200],
-  "postCreateCommand": "bun install && bunx playwright install --with-deps chromium",
+  "forwardPorts": [3000, 4200, 4201],
+  "postCreateCommand": "bun install && bunx playwright install --with-deps chromium && npm install -g @anthropic-ai/claude-code",
   "customizations": {
     "vscode": {
       "extensions": [
