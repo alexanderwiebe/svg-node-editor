@@ -1,0 +1,17 @@
+{
+  "name": "ai-document",
+  "version": "1.0.0",
+  "description": "ai document editor",
+  "private": true,
+  "workspaces": [
+    "fe/*",
+    "be/*",
+    "e2e/*"
+  ],
+  "scripts": {
+    "fe:dev": "bun run --filter @ai-document/frontend start",
+    "be:dev": "bun run --filter @ai-document/backend start:dev",
+    "e2e:test": "bun run --filter @ai-document/e2e test",
+    "e2e:test:only": "bun run --filter @ai-document/e2e test:only"
+  }
+}
