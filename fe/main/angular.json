@@ -11,7 +11,8 @@
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
-          "type": "component"
+          "type": "component",
+          "style": "scss"
         },
         "@schematics/angular:directive": {
           "type": "directive"
@@ -48,7 +49,7 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.scss"
             ]
           },
           "configurations": {
