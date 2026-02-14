@@ -7,8 +7,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { WorkspaceStore } from '../store/workspace.store';
+import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component';
 
 @Component({
   selector: 'app-workspace-page',
@@ -20,21 +22,35 @@ import { WorkspaceStore } from '../store/workspace.store';
     MatButtonModule,
     MatChipsModule,
     MatIconModule,
-    MatCardModule
+    MatCardModule,
+    MatDialogModule
   ],
   template: `
     <div class="workspace-container">
       <div class="workspace-header">
         <h1>{{ isEditMode() ? 'Edit Workspace' : 'New Workspace' }}</h1>
-        <button
-          mat-raised-button
-          color="primary"
-          (click)="saveWorkspace()"
-          [disabled]="!workspaceForm.valid || store.loading()"
-          data-testid="save-workspace-button">
-          <mat-icon>{{ isEditMode() ? 'edit' : 'save' }}</mat-icon>
-          {{ isEditMode() ? 'Update Workspace' : 'Save Workspace' }}
-        </button>
+        <div class="header-actions">
+          @if (isEditMode()) {
+            <button
+              mat-raised-button
+              color="warn"
+              (click)="deleteWorkspace()"
+              [disabled]="store.loading()"
+              data-testid="delete-workspace-button">
+              <mat-icon>delete</mat-icon>
+              Delete
+            </button>
+          }
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="saveWorkspace()"
+            [disabled]="!workspaceForm.valid || store.loading()"
+            data-testid="save-workspace-button">
+            <mat-icon>{{ isEditMode() ? 'edit' : 'save' }}</mat-icon>
+            {{ isEditMode() ? 'Update Workspace' : 'Save Workspace' }}
+          </button>
+        </div>
       </div>
 
       <mat-card class="form-card">
@@ -105,7 +121,12 @@ import { WorkspaceStore } from '../store/workspace.store';
       font-weight: 400;
     }
 
-    .workspace-header button {
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .header-actions button {
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -138,6 +159,7 @@ export class WorkspacePageComponent implements OnInit {
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private dialog = inject(MatDialog);
   readonly store = inject(WorkspaceStore);
 
   readonly separatorKeysCodes: number[] = [ENTER, COMMA];
@@ -199,5 +221,29 @@ export class WorkspacePageComponent implements OnInit {
         this.workspaceForm.reset();
       }
     }
+  }
+
+  deleteWorkspace() {
+    const id = this.workspaceId();
+    if (!id) return;
+
+    const workspace = this.store.getWorkspaceById(id);
+    if (!workspace) return;
+
+    const dialogRef = this.dialog.open(ConfirmDeleteDialogComponent, {
+      width: '400px',
+      data: { workspaceName: workspace.name }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        this.store.deleteWorkspace(id);
+
+        // Navigate to home after deletion
+        setTimeout(() => {
+          this.router.navigate(['/']);
+        }, 400);
+      }
+    });
   }
 }

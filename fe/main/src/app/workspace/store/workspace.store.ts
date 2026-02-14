@@ -73,6 +73,28 @@ export const WorkspaceStore = signalStore(
           });
         }
       }, 500);
+    },
+
+    deleteWorkspace(id: string) {
+      patchState(store, { loading: true, error: null });
+
+      // Simulate async API call
+      setTimeout(() => {
+        try {
+          patchState(store, (state) => ({
+            workspaces: state.workspaces.filter(ws => ws.id !== id),
+            loading: false,
+            error: null
+          }));
+
+          console.log('Workspace deleted:', id);
+        } catch (error: any) {
+          patchState(store, {
+            loading: false,
+            error: error.message || 'Failed to delete workspace'
+          });
+        }
+      }, 300);
     }
   }))
 );
