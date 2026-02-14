@@ -10,5 +10,9 @@ export const routes: Routes = [
   {
     path: 'workspace/new',
     component: WorkspacePageComponent
+  },
+  {
+    path: 'workspace/:id',
+    component: WorkspacePageComponent
   }
 ];

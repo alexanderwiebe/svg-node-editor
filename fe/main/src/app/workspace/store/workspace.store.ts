@@ -13,6 +13,10 @@ export const WorkspaceStore = signalStore(
     workspacesCount: selectWorkspacesCount(store.workspaces)
   })),
   withMethods((store) => ({
+    getWorkspaceById(id: string): Workspace | undefined {
+      return store.workspaces().find(ws => ws.id === id);
+    },
+
     saveWorkspace(data: { name: string; tags: string[]; description: string }) {
       patchState(store, { loading: true, error: null });
 
@@ -40,6 +44,32 @@ export const WorkspaceStore = signalStore(
           patchState(store, {
             loading: false,
             error: error.message || 'Failed to save workspace'
+          });
+        }
+      }, 500);
+    },
+
+    updateWorkspace(id: string, data: { name: string; tags: string[]; description: string }) {
+      patchState(store, { loading: true, error: null });
+
+      // Simulate async API call
+      setTimeout(() => {
+        try {
+          patchState(store, (state) => ({
+            workspaces: state.workspaces.map(ws =>
+              ws.id === id
+                ? { ...ws, ...data, updatedAt: new Date() }
+                : ws
+            ),
+            loading: false,
+            error: null
+          }));
+
+          console.log('Workspace updated:', id);
+        } catch (error: any) {
+          patchState(store, {
+            loading: false,
+            error: error.message || 'Failed to update workspace'
           });
         }
       }, 500);

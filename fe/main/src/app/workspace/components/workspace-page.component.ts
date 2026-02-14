@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit, computed } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -24,15 +25,15 @@ import { WorkspaceStore } from '../store/workspace.store';
   template: `
     <div class="workspace-container">
       <div class="workspace-header">
-        <h1>New Workspace</h1>
+        <h1>{{ isEditMode() ? 'Edit Workspace' : 'New Workspace' }}</h1>
         <button
           mat-raised-button
           color="primary"
           (click)="saveWorkspace()"
           [disabled]="!workspaceForm.valid || store.loading()"
           data-testid="save-workspace-button">
-          <mat-icon>save</mat-icon>
-          Save Workspace
+          <mat-icon>{{ isEditMode() ? 'edit' : 'save' }}</mat-icon>
+          {{ isEditMode() ? 'Update Workspace' : 'Save Workspace' }}
         </button>
       </div>
 
@@ -133,17 +134,40 @@ import { WorkspaceStore } from '../store/workspace.store';
     }
   `
 })
-export class WorkspacePageComponent {
+export class WorkspacePageComponent implements OnInit {
   private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
   readonly store = inject(WorkspaceStore);
 
   readonly separatorKeysCodes: number[] = [ENTER, COMMA];
+
+  workspaceId = computed(() => this.route.snapshot.paramMap.get('id'));
+  isEditMode = computed(() => !!this.workspaceId());
 
   workspaceForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
     tags: [''],
     description: ['', Validators.required]
   });
+
+  ngOnInit() {
+    const id = this.workspaceId();
+    if (id) {
+      // Load existing workspace data
+      const workspace = this.store.getWorkspaceById(id);
+      if (workspace) {
+        this.workspaceForm.patchValue({
+          name: workspace.name,
+          tags: workspace.tags.join(', '),
+          description: workspace.description
+        });
+      } else {
+        // Workspace not found, redirect to new workspace
+        this.router.navigate(['/workspace/new']);
+      }
+    }
+  }
 
   saveWorkspace() {
     if (this.workspaceForm.valid) {
@@ -152,14 +176,28 @@ export class WorkspacePageComponent {
         ? formValue.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag)
         : [];
 
-      this.store.saveWorkspace({
+      const data = {
         name: formValue.name,
         tags,
         description: formValue.description
-      });
+      };
 
-      // Reset form after saving
-      this.workspaceForm.reset();
+      const id = this.workspaceId();
+      if (id) {
+        // Update existing workspace
+        this.store.updateWorkspace(id, data);
+
+        // Navigate back to home after update
+        setTimeout(() => {
+          this.router.navigate(['/']);
+        }, 600);
+      } else {
+        // Create new workspace
+        this.store.saveWorkspace(data);
+
+        // Reset form after saving
+        this.workspaceForm.reset();
+      }
     }
   }
 }
