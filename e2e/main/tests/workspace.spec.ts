@@ -165,4 +165,153 @@ test.describe('Workspace Management', () => {
     // Verify the workspace name is correct
     await expect(workspaceItem).toContainText(workspaceName);
   });
+
+  test('should not show delete button in create mode', async ({ page }) => {
+    await page.goto('/workspace/new');
+
+    // Delete button should not exist in create mode
+    await expect(page.getByTestId('delete-workspace-button')).not.toBeVisible();
+  });
+
+  test('should show delete button in edit mode', async ({ page }) => {
+    // Create a workspace first
+    await page.goto('/workspace/new');
+    await page.getByTestId('workspace-name-input').fill('Test Delete Workspace');
+    await page.getByTestId('workspace-description-input').fill('To be deleted');
+    await page.getByTestId('save-workspace-button').click();
+    await page.waitForTimeout(700);
+
+    // Navigate home and click on the workspace
+    await page.click('a[routerlink="/"]');
+    await page.waitForTimeout(500);
+
+    // Click on the workspace to edit it
+    await page.getByTestId('workspace-item').filter({ hasText: 'Test Delete Workspace' }).click();
+    await page.waitForTimeout(500);
+
+    // Delete button should be visible in edit mode
+    await expect(page.getByTestId('delete-workspace-button')).toBeVisible();
+  });
+
+  test('should show confirmation dialog when delete is clicked', async ({ page }) => {
+    // Create a workspace
+    await page.goto('/workspace/new');
+    const workspaceName = 'Confirm Dialog Test';
+    await page.getByTestId('workspace-name-input').fill(workspaceName);
+    await page.getByTestId('workspace-description-input').fill('Testing dialog');
+    await page.getByTestId('save-workspace-button').click();
+    await page.waitForTimeout(700);
+
+    // Navigate to edit mode
+    await page.click('a[routerlink="/"]');
+    await page.waitForTimeout(500);
+    await page.getByTestId('workspace-item').filter({ hasText: workspaceName }).click();
+    await page.waitForTimeout(500);
+
+    // Click delete button
+    await page.getByTestId('delete-workspace-button').click();
+
+    // Confirmation dialog should appear
+    await expect(page.getByRole('heading', { name: /delete workspace/i })).toBeVisible();
+    await expect(page.locator('mat-dialog-content')).toContainText(workspaceName);
+    await expect(page.locator('mat-dialog-content')).toContainText('This action cannot be undone');
+  });
+
+  test('should cancel deletion when cancel button is clicked', async ({ page }) => {
+    // Create a workspace
+    await page.goto('/workspace/new');
+    const workspaceName = 'Cancel Delete Test';
+    await page.getByTestId('workspace-name-input').fill(workspaceName);
+    await page.getByTestId('workspace-description-input').fill('Should not be deleted');
+    await page.getByTestId('save-workspace-button').click();
+    await page.waitForTimeout(700);
+
+    // Navigate to edit mode
+    await page.click('a[routerlink="/"]');
+    await page.waitForTimeout(500);
+    await page.getByTestId('workspace-item').filter({ hasText: workspaceName }).click();
+    await page.waitForTimeout(500);
+
+    // Click delete and then cancel
+    await page.getByTestId('delete-workspace-button').click();
+    await page.getByTestId('cancel-delete-button').click();
+
+    // Should still be on edit page
+    await expect(page.locator('h1')).toHaveText('Edit Workspace');
+
+    // Workspace should still exist in nav
+    await page.click('a[routerlink="/"]');
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId('workspace-item').filter({ hasText: workspaceName })).toBeVisible();
+  });
+
+  test('should delete workspace when confirmed', async ({ page }) => {
+    // Create a workspace
+    await page.goto('/workspace/new');
+    const workspaceName = `Delete Me ${Date.now()}`;
+    await page.getByTestId('workspace-name-input').fill(workspaceName);
+    await page.getByTestId('workspace-description-input').fill('Will be deleted');
+    await page.getByTestId('save-workspace-button').click();
+    await page.waitForTimeout(700);
+
+    // Navigate to edit mode
+    await page.click('a[routerlink="/"]');
+    await page.waitForTimeout(500);
+    await page.getByTestId('workspace-item').filter({ hasText: workspaceName }).click();
+    await page.waitForTimeout(500);
+
+    // Click delete and confirm
+    await page.getByTestId('delete-workspace-button').click();
+    await page.getByTestId('confirm-delete-button').click();
+
+    // Wait for deletion and navigation
+    await page.waitForTimeout(500);
+
+    // Should be redirected to home
+    await expect(page).toHaveURL('/');
+
+    // Workspace should no longer exist in nav
+    await expect(page.getByTestId('workspace-item').filter({ hasText: workspaceName })).not.toBeVisible();
+  });
+
+  test('complete delete workflow: create, edit, delete with confirmation', async ({ page }) => {
+    const workspaceName = `Full Delete Flow ${Date.now()}`;
+
+    // Create workspace
+    await page.goto('/workspace/new');
+    await page.getByTestId('workspace-name-input').fill(workspaceName);
+    await page.getByTestId('workspace-tags-input').fill('delete, test, e2e');
+    await page.getByTestId('workspace-description-input').fill('Complete delete workflow test');
+    await page.getByTestId('save-workspace-button').click();
+    await page.waitForTimeout(700);
+
+    // Verify created
+    await page.click('a[routerlink="/"]');
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId('workspace-item').filter({ hasText: workspaceName })).toBeVisible();
+
+    // Edit workspace
+    await page.getByTestId('workspace-item').filter({ hasText: workspaceName }).click();
+    await page.waitForTimeout(500);
+
+    // Verify in edit mode
+    await expect(page.locator('h1')).toHaveText('Edit Workspace');
+    await expect(page.getByTestId('delete-workspace-button')).toBeVisible();
+    await expect(page.getByTestId('workspace-name-input')).toHaveValue(workspaceName);
+
+    // Delete with confirmation
+    await page.getByTestId('delete-workspace-button').click();
+
+    // Verify dialog
+    await expect(page.getByRole('heading', { name: /delete workspace/i })).toBeVisible();
+    await expect(page.locator('mat-dialog-content')).toContainText(workspaceName);
+
+    // Confirm deletion
+    await page.getByTestId('confirm-delete-button').click();
+    await page.waitForTimeout(500);
+
+    // Verify deletion and navigation
+    await expect(page).toHaveURL('/');
+    await expect(page.getByTestId('workspace-item').filter({ hasText: workspaceName })).not.toBeVisible();
+  });
 });
