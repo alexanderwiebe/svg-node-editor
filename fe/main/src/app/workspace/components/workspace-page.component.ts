@@ -1,5 +1,5 @@
-import { Component, inject, OnInit, computed } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Component, inject, OnInit, computed, signal, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -17,6 +17,7 @@ import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component'
   standalone: true,
   imports: [
     ReactiveFormsModule,
+    FormsModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
@@ -28,7 +29,25 @@ import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component'
   template: `
     <div class="workspace-container">
       <div class="workspace-header">
-        <h1>{{ isEditMode() ? 'Edit Workspace' : 'New Workspace' }}</h1>
+        @if (isEditMode()) {
+          @if (isEditingTitle()) {
+            <input
+              class="title-input"
+              [(ngModel)]="editedTitle"
+              (blur)="saveTitleEdit()"
+              (keyup.enter)="saveTitleEdit()"
+              (keyup.escape)="cancelTitleEdit()"
+              #titleInput
+              data-testid="workspace-title-input">
+          } @else {
+            <h1 class="editable-title" (click)="startTitleEdit()" data-testid="workspace-title">
+              {{ currentWorkspaceName() }}
+              <mat-icon class="edit-hint">edit</mat-icon>
+            </h1>
+          }
+        } @else {
+          <h1>New Workspace</h1>
+        }
         <div class="header-actions">
           @if (isEditMode()) {
             <button
@@ -121,6 +140,39 @@ import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component'
       font-weight: 400;
     }
 
+    .editable-title {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.2s;
+    }
+
+    .editable-title:hover {
+      color: #1976d2;
+    }
+
+    .editable-title .edit-hint {
+      font-size: 1.2rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .editable-title:hover .edit-hint {
+      opacity: 0.6;
+    }
+
+    .title-input {
+      font-size: 2rem;
+      font-weight: 400;
+      border: 2px solid #1976d2;
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-family: inherit;
+      outline: none;
+      min-width: 300px;
+    }
+
     .header-actions {
       display: flex;
       gap: 1rem;
@@ -162,10 +214,23 @@ export class WorkspacePageComponent implements OnInit {
   private dialog = inject(MatDialog);
   readonly store = inject(WorkspaceStore);
 
+  @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
+
   readonly separatorKeysCodes: number[] = [ENTER, COMMA];
 
   workspaceId = computed(() => this.route.snapshot.paramMap.get('id'));
   isEditMode = computed(() => !!this.workspaceId());
+
+  isEditingTitle = signal(false);
+  editedTitle = '';
+  currentWorkspaceName = computed(() => {
+    const id = this.workspaceId();
+    if (id) {
+      const workspace = this.store.getWorkspaceById(id);
+      return workspace?.name || 'Edit Workspace';
+    }
+    return 'New Workspace';
+  });
 
   workspaceForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
@@ -191,7 +256,7 @@ export class WorkspacePageComponent implements OnInit {
     }
   }
 
-  saveWorkspace() {
+  async saveWorkspace() {
     if (this.workspaceForm.valid) {
       const formValue = this.workspaceForm.value;
       const tags = formValue.tags
@@ -214,13 +279,56 @@ export class WorkspacePageComponent implements OnInit {
           this.router.navigate(['/']);
         }, 600);
       } else {
-        // Create new workspace
-        this.store.saveWorkspace(data);
+        // Create new workspace and navigate to it
+        const workspace = await this.store.saveWorkspace(data);
 
-        // Reset form after saving
-        this.workspaceForm.reset();
+        // Navigate to the new workspace's edit page
+        setTimeout(() => {
+          this.router.navigate(['/workspace', workspace.id]);
+        }, 600);
       }
     }
+  }
+
+  startTitleEdit() {
+    this.editedTitle = this.currentWorkspaceName();
+    this.isEditingTitle.set(true);
+
+    // Focus the input after it renders
+    setTimeout(() => {
+      this.titleInput?.nativeElement.focus();
+      this.titleInput?.nativeElement.select();
+    }, 0);
+  }
+
+  saveTitleEdit() {
+    const id = this.workspaceId();
+    if (!id || !this.editedTitle.trim()) {
+      this.cancelTitleEdit();
+      return;
+    }
+
+    // Update the workspace name
+    const workspace = this.store.getWorkspaceById(id);
+    if (workspace) {
+      this.store.updateWorkspace(id, {
+        name: this.editedTitle.trim(),
+        tags: workspace.tags,
+        description: workspace.description
+      });
+
+      // Also update the form
+      this.workspaceForm.patchValue({
+        name: this.editedTitle.trim()
+      });
+    }
+
+    this.isEditingTitle.set(false);
+  }
+
+  cancelTitleEdit() {
+    this.isEditingTitle.set(false);
+    this.editedTitle = '';
   }
 
   deleteWorkspace() {
