@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { LayoutComponent } from './core/components/layout.component';
+import { WorkspaceStore } from './workspace/store/workspace.store';
 
 @Component({
   selector: 'app-root',
@@ -12,4 +13,11 @@ import { LayoutComponent } from './core/components/layout.component';
     </app-layout>
   `
 })
-export class AppComponent {}
+export class AppComponent implements OnInit {
+  private workspaceStore = inject(WorkspaceStore);
+
+  ngOnInit() {
+    // Load workspaces from backend on app initialization
+    this.workspaceStore.loadWorkspaces();
+  }
+}

@@ -1,0 +1,143 @@
+### Workspace API Endpoints Testing
+### Base URL
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+###
+# Test 1: Create a new workspace
+POST {{baseUrl}}/workspaces
+Content-Type: {{contentType}}
+
+{
+  "name": "Project Alpha",
+  "tags": ["frontend", "angular", "typescript"],
+  "description": "Main frontend project for the application"
+}
+
+###
+# Test 2: Create another workspace
+POST {{baseUrl}}/workspaces
+Content-Type: {{contentType}}
+
+{
+  "name": "Backend Services",
+  "tags": ["backend", "nestjs", "nodejs"],
+  "description": "NestJS backend microservices"
+}
+
+###
+# Test 3: Create workspace with minimal tags
+POST {{baseUrl}}/workspaces
+Content-Type: {{contentType}}
+
+{
+  "name": "Documentation",
+  "tags": ["docs"],
+  "description": "Project documentation and guides"
+}
+
+###
+# Test 4: List all workspaces (should be sorted by updatedAt desc)
+GET {{baseUrl}}/workspaces
+
+###
+# Test 5: Get a specific workspace by ID
+# Replace with actual workspace ID from create response
+GET {{baseUrl}}/workspaces/550e8400-e29b-41d4-a716-446655440000
+
+###
+# Test 6: Update a workspace
+# Replace with actual workspace ID
+PATCH {{baseUrl}}/workspaces/550e8400-e29b-41d4-a716-446655440000
+Content-Type: {{contentType}}
+
+{
+  "name": "Project Alpha - Updated",
+  "tags": ["frontend", "angular", "typescript", "material"],
+  "description": "Updated description with new information"
+}
+
+###
+# Test 7: Partial update (only name)
+PATCH {{baseUrl}}/workspaces/550e8400-e29b-41d4-a716-446655440000
+Content-Type: {{contentType}}
+
+{
+  "name": "Project Alpha - Name Only Update"
+}
+
+###
+# Test 8: Partial update (only tags)
+PATCH {{baseUrl}}/workspaces/550e8400-e29b-41d4-a716-446655440000
+Content-Type: {{contentType}}
+
+{
+  "tags": ["frontend", "react"]
+}
+
+###
+# Test 9: Delete a workspace
+# Replace with actual workspace ID
+DELETE {{baseUrl}}/workspaces/550e8400-e29b-41d4-a716-446655440000
+
+###
+# Test 10: Try to get deleted workspace (should return 404)
+GET {{baseUrl}}/workspaces/550e8400-e29b-41d4-a716-446655440000
+
+###
+# Test 11: Try to update non-existent workspace (should return 404)
+PATCH {{baseUrl}}/workspaces/non-existent-id
+Content-Type: {{contentType}}
+
+{
+  "name": "This should fail"
+}
+
+###
+# Test 12: Try to delete non-existent workspace (should return 404)
+DELETE {{baseUrl}}/workspaces/non-existent-id
+
+###
+# Test 13: Create workspace with missing required field (should fail validation)
+POST {{baseUrl}}/workspaces
+Content-Type: {{contentType}}
+
+{
+  "tags": ["test"],
+  "description": "Missing name field"
+}
+
+###
+# Test 14: Create workspace with empty name (should fail validation)
+POST {{baseUrl}}/workspaces
+Content-Type: {{contentType}}
+
+{
+  "name": "",
+  "tags": ["test"],
+  "description": "Empty name"
+}
+
+###
+# Test 15: Create workspace with invalid tags type (should fail validation)
+POST {{baseUrl}}/workspaces
+Content-Type: {{contentType}}
+
+{
+  "name": "Invalid Tags",
+  "tags": "not-an-array",
+  "description": "Tags should be an array"
+}
+
+###
+# Test 16: Create workspace with extra fields (should be stripped by whitelist)
+POST {{baseUrl}}/workspaces
+Content-Type: {{contentType}}
+
+{
+  "name": "Extra Fields Test",
+  "tags": ["test"],
+  "description": "Testing extra fields",
+  "extraField": "should be ignored",
+  "anotherField": 123
+}

@@ -11,6 +11,8 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { WorkspaceStore } from '../store/workspace.store';
 import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component';
+import { TagInputComponent } from './tag-input.component';
+import { selectAllTags } from '../store/workspace.selectors';
 
 @Component({
   selector: 'app-workspace-page',
@@ -24,7 +26,8 @@ import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component'
     MatChipsModule,
     MatIconModule,
     MatCardModule,
-    MatDialogModule
+    MatDialogModule,
+    TagInputComponent
   ],
   template: `
     <div class="workspace-container">
@@ -87,14 +90,12 @@ import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component'
               }
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Tags (comma-separated)</mat-label>
-              <input
-                matInput
-                formControlName="tags"
-                placeholder="e.g., project, team, design"
-                data-testid="workspace-tags-input">
-            </mat-form-field>
+            <app-tag-input
+              [value]="workspaceTags()"
+              [existingTags]="existingTags()"
+              (valueChange)="onTagsChange($event)"
+              data-testid="workspace-tags-input">
+            </app-tag-input>
 
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Description</mat-label>
@@ -232,9 +233,12 @@ export class WorkspacePageComponent implements OnInit {
     return 'New Workspace';
   });
 
+  // Tags management
+  workspaceTags = signal<string[]>([]);
+  existingTags = selectAllTags(this.store.workspaces);
+
   workspaceForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
-    tags: [''],
     description: ['', Validators.required]
   });
 
@@ -246,9 +250,9 @@ export class WorkspacePageComponent implements OnInit {
       if (workspace) {
         this.workspaceForm.patchValue({
           name: workspace.name,
-          tags: workspace.tags.join(', '),
           description: workspace.description
         });
+        this.workspaceTags.set(workspace.tags);
       } else {
         // Workspace not found, redirect to new workspace
         this.router.navigate(['/workspace/new']);
@@ -256,16 +260,17 @@ export class WorkspacePageComponent implements OnInit {
     }
   }
 
+  onTagsChange(tags: string[]) {
+    this.workspaceTags.set(tags);
+  }
+
   async saveWorkspace() {
     if (this.workspaceForm.valid) {
       const formValue = this.workspaceForm.value;
-      const tags = formValue.tags
-        ? formValue.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag)
-        : [];
 
       const data = {
         name: formValue.name,
-        tags,
+        tags: this.workspaceTags(),
         description: formValue.description
       };
 

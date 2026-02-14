@@ -32,6 +32,10 @@ interface NavNode {
         <mat-icon matListItemIcon>home</mat-icon>
         <span matListItemTitle>Home</span>
       </a>
+      <a mat-list-item routerLink="/search" routerLinkActive="active" data-testid="search-nav-link">
+        <mat-icon matListItemIcon>search</mat-icon>
+        <span matListItemTitle>Search</span>
+      </a>
     </mat-nav-list>
 
     <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="workspace-tree">
@@ -69,7 +73,8 @@ interface NavNode {
     .tree-node {
       text-align: left;
       width: 100%;
-      padding-left: 8px;
+      padding-left: 0;
+      justify-content: flex-start;
     }
 
     .tree-icon {
@@ -85,15 +90,41 @@ interface NavNode {
       padding-left: 0;
     }
 
+    /* Remove default Material tree padding */
+    ::ng-deep .mat-nested-tree-node > div {
+      padding-left: 0 !important;
+    }
+
     .mat-tree-node {
       display: flex;
       align-items: center;
       min-height: 48px;
+      padding-left: 0;
     }
 
+    /* Compact toggle button */
+    .mat-tree-node button[mat-icon-button] {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      margin-right: 4px;
+    }
+
+    /* Align child workspace items with parent Workspaces icon */
     .tree-spacer {
       width: 40px;
       display: inline-block;
+      flex-shrink: 0;
+    }
+
+    /* Reduce indent for child nodes - align icons */
+    mat-nested-tree-node mat-nested-tree-node {
+      margin-left: 0;
+    }
+
+    /* Make all icons align vertically */
+    mat-nested-tree-node mat-nested-tree-node .mat-tree-node {
+      padding-left: 40px;
     }
   `
 })
