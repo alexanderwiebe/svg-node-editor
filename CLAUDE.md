@@ -109,6 +109,28 @@ fe/main/src/app/
 - Standard NestJS module/controller/service structure
 - Entry point: `be/main/src/main.ts`
 
+## Workflow
+
+### Task Tracking
+
+- **TASKS.md** at the project root is the local source of truth for all planned work
+- GitHub issues in the **aj-agentic-aware** project mirror TASKS.md — keep both in sync
+- Before starting work, read `TASKS.md` and run `gh issue list` to understand current priorities
+- When starting an issue, run `gh issue view <N>` to pull in the full context (subtasks, acceptance criteria)
+- After completing subtasks, check them off in both the GitHub issue and TASKS.md
+
+### Branch Naming
+
+- Use the pattern: `feat/<issue-number>-<short-name>` (e.g., `feat/3-node-creation`)
+- Infer the current task from the git branch name when resuming work
+- One branch per issue; keep branches focused on a single feature
+
+### Issue Lifecycle
+
+- Reference issue numbers in commit messages (e.g., "feat: add SvgCanvasComponent #1")
+- When all subtasks and acceptance criteria for an issue are met, close it with `gh issue close <N>`
+- If work on an issue reveals new tasks, create follow-up issues and link them
+
 ## Development Container
 
 The project includes a devcontainer configuration for VS Code:
