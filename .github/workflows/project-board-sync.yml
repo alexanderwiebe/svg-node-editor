@@ -1,76 +1,30 @@
 name: Project Board Sync
 
 on:
-  projects_v2_item:
-    types: [edited]
+  issues:
+    types: [labeled, closed]
 
 concurrency:
   group: tasks-md-update
   cancel-in-progress: false
 
 jobs:
-  resolve-context:
+  in-progress:
+    if: >-
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'in-progress'
     runs-on: ubuntu-latest
-    outputs:
-      status: ${{ steps.item.outputs.status }}
-      issue_number: ${{ steps.item.outputs.issue_number }}
-      issue_title: ${{ steps.item.outputs.issue_title }}
-      branch_name: ${{ steps.item.outputs.branch_name }}
     steps:
-      - name: Get project item details
-        id: item
+      - name: Resolve context
+        id: ctx
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
-          PROJECT_NUMBER: 2
-          ITEM_NODE_ID: ${{ github.event.projects_v2_item.node_id }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
-          # Query the project item for its Status field and linked issue
-          ITEM_DATA=$(gh api graphql -f query='
-            query($itemId: ID!) {
-              node(id: $itemId) {
-                ... on ProjectV2Item {
-                  fieldValueByName(name: "Status") {
-                    ... on ProjectV2ItemFieldSingleSelectValue {
-                      name
-                    }
-                  }
-                  content {
-                    ... on Issue {
-                      number
-                      title
-                    }
-                  }
-                }
-              }
-            }
-          ' -f itemId="$ITEM_NODE_ID")
-
-          STATUS=$(echo "$ITEM_DATA" | jq -r '.data.node.fieldValueByName.name // empty')
-          ISSUE_NUMBER=$(echo "$ITEM_DATA" | jq -r '.data.node.content.number // empty')
-          ISSUE_TITLE=$(echo "$ITEM_DATA" | jq -r '.data.node.content.title // empty')
-
-          if [ -z "$ISSUE_NUMBER" ] || [ -z "$STATUS" ]; then
-            echo "Could not resolve issue number or status. Item may not be linked to an issue."
-            echo "status=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Slugify the title for the branch name
           SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
           BRANCH="feat/${ISSUE_NUMBER}-${SLUG}"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
 
-          echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
-          echo "issue_number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
-          echo "issue_title=${ISSUE_TITLE}" >> "$GITHUB_OUTPUT"
-          echo "branch_name=${BRANCH}" >> "$GITHUB_OUTPUT"
-
-          echo "Resolved: status=$STATUS, issue=#$ISSUE_NUMBER, branch=$BRANCH"
-
-  in-progress:
-    needs: resolve-context
-    if: needs.resolve-context.outputs.status == 'In Progress'
-    runs-on: ubuntu-latest
-    steps:
       - name: Checkout main
         uses: actions/checkout@v4
         with:
@@ -79,7 +33,7 @@ jobs:
 
       - name: Create feature branch
         env:
-          BRANCH: ${{ needs.resolve-context.outputs.branch_name }}
+          BRANCH: ${{ steps.ctx.outputs.branch }}
         run: |
           git fetch origin
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
@@ -92,16 +46,16 @@ jobs:
 
       - name: Update TASKS.md
         env:
-          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
-          ISSUE_TITLE: ${{ needs.resolve-context.outputs.issue_title }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           chmod +x .github/scripts/update-tasks.sh
           .github/scripts/update-tasks.sh in-progress "$ISSUE_NUMBER" "$ISSUE_TITLE"
 
       - name: Commit and push
         env:
-          BRANCH: ${{ needs.resolve-context.outputs.branch_name }}
-          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
+          BRANCH: ${{ steps.ctx.outputs.branch }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -116,13 +70,84 @@ jobs:
       - name: Assign issue to repo owner
         env:
           GH_TOKEN: ${{ secrets.PROJECT_PAT }}
-          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-assignee alexanderwiebe
 
+      - name: Move project card to In Progress
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          # Get the project item ID for this issue
+          ITEM_ID=$(gh api graphql -f query='
+            query($owner: String!, $number: Int!) {
+              user(login: $owner) {
+                projectV2(number: $number) {
+                  items(first: 100) {
+                    nodes {
+                      id
+                      content {
+                        ... on Issue {
+                          number
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="alexanderwiebe" -F number=2 \
+            | jq -r ".data.user.projectV2.items.nodes[] | select(.content.number == ${ISSUE_NUMBER}) | .id")
+
+          if [ -z "$ITEM_ID" ]; then
+            echo "Issue not found in project, skipping board sync"
+            exit 0
+          fi
+
+          # Get the Status field ID and "In Progress" option ID
+          FIELD_DATA=$(gh api graphql -f query='
+            query($owner: String!, $number: Int!) {
+              user(login: $owner) {
+                projectV2(number: $number) {
+                  id
+                  field(name: "Status") {
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      options {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ' -f owner="alexanderwiebe" -F number=2)
+
+          PROJECT_ID=$(echo "$FIELD_DATA" | jq -r '.data.user.projectV2.id')
+          FIELD_ID=$(echo "$FIELD_DATA" | jq -r '.data.user.projectV2.field.id')
+          OPTION_ID=$(echo "$FIELD_DATA" | jq -r '.data.user.projectV2.field.options[] | select(.name == "In Progress") | .id')
+
+          # Set the status
+          gh api graphql -f query='
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: { singleSelectOptionId: $optionId }
+              }) {
+                projectV2Item { id }
+              }
+            }
+          ' -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="$FIELD_ID" -f optionId="$OPTION_ID"
+
+          echo "Moved issue #${ISSUE_NUMBER} to In Progress on project board"
+
   done:
-    needs: resolve-context
-    if: needs.resolve-context.outputs.status == 'Done'
+    if: >-
+      github.event.action == 'closed'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
@@ -133,15 +158,15 @@ jobs:
 
       - name: Update TASKS.md
         env:
-          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
-          ISSUE_TITLE: ${{ needs.resolve-context.outputs.issue_title }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           chmod +x .github/scripts/update-tasks.sh
           .github/scripts/update-tasks.sh done "$ISSUE_NUMBER" "$ISSUE_TITLE"
 
       - name: Commit and push to main
         env:
-          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -152,10 +177,3 @@ jobs:
             git commit -m "chore: mark issue #${ISSUE_NUMBER} as done in TASKS.md"
             git push origin main
           fi
-
-      - name: Close issue
-        env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
-          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
-        run: |
-          gh issue close "$ISSUE_NUMBER" --comment "Closed automatically — project board moved to Done."
