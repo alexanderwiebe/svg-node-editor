@@ -19,7 +19,7 @@ if [ ! -f "$TASKS_FILE" ]; then
 fi
 
 # Find the line range for the section matching "## <N>." (e.g., "## 3. Node Creation")
-SECTION_START=$(grep -n "^## ${ISSUE_NUMBER}\." "$TASKS_FILE" | head -1 | cut -d: -f1)
+SECTION_START=$(grep -n "^## ${ISSUE_NUMBER}\." "$TASKS_FILE" | head -1 | cut -d: -f1 || true)
 
 if [ -z "$SECTION_START" ]; then
   echo "No section found for issue #${ISSUE_NUMBER}, appending new section"
@@ -40,7 +40,7 @@ fi
 
 # Find the end of this section (next "---" or "## " heading, or EOF)
 TOTAL_LINES=$(wc -l < "$TASKS_FILE")
-SECTION_END=$(tail -n +"$((SECTION_START + 1))" "$TASKS_FILE" | grep -n "^---$" | head -1 | cut -d: -f1)
+SECTION_END=$(tail -n +"$((SECTION_START + 1))" "$TASKS_FILE" | grep -n "^---$" | head -1 | cut -d: -f1 || true)
 
 if [ -n "$SECTION_END" ]; then
   SECTION_END=$((SECTION_START + SECTION_END - 1))
@@ -51,7 +51,7 @@ fi
 echo "Section for issue #${ISSUE_NUMBER}: lines ${SECTION_START}-${SECTION_END}"
 
 # Check if a status line already exists in this section
-STATUS_LINE=$(sed -n "${SECTION_START},${SECTION_END}p" "$TASKS_FILE" | grep -n "^> Status:" | head -1 | cut -d: -f1)
+STATUS_LINE=$(sed -n "${SECTION_START},${SECTION_END}p" "$TASKS_FILE" | grep -n "^> Status:" | head -1 | cut -d: -f1 || true)
 
 case "$ACTION" in
   in-progress)
