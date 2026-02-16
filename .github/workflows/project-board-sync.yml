@@ -1,0 +1,161 @@
+name: Project Board Sync
+
+on:
+  projects_v2_item:
+    types: [edited]
+
+concurrency:
+  group: tasks-md-update
+  cancel-in-progress: false
+
+jobs:
+  resolve-context:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.item.outputs.status }}
+      issue_number: ${{ steps.item.outputs.issue_number }}
+      issue_title: ${{ steps.item.outputs.issue_title }}
+      branch_name: ${{ steps.item.outputs.branch_name }}
+    steps:
+      - name: Get project item details
+        id: item
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          PROJECT_NUMBER: 2
+          ITEM_NODE_ID: ${{ github.event.projects_v2_item.node_id }}
+        run: |
+          # Query the project item for its Status field and linked issue
+          ITEM_DATA=$(gh api graphql -f query='
+            query($itemId: ID!) {
+              node(id: $itemId) {
+                ... on ProjectV2Item {
+                  fieldValueByName(name: "Status") {
+                    ... on ProjectV2ItemFieldSingleSelectValue {
+                      name
+                    }
+                  }
+                  content {
+                    ... on Issue {
+                      number
+                      title
+                    }
+                  }
+                }
+              }
+            }
+          ' -f itemId="$ITEM_NODE_ID")
+
+          STATUS=$(echo "$ITEM_DATA" | jq -r '.data.node.fieldValueByName.name // empty')
+          ISSUE_NUMBER=$(echo "$ITEM_DATA" | jq -r '.data.node.content.number // empty')
+          ISSUE_TITLE=$(echo "$ITEM_DATA" | jq -r '.data.node.content.title // empty')
+
+          if [ -z "$ISSUE_NUMBER" ] || [ -z "$STATUS" ]; then
+            echo "Could not resolve issue number or status. Item may not be linked to an issue."
+            echo "status=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Slugify the title for the branch name
+          SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
+          BRANCH="feat/${ISSUE_NUMBER}-${SLUG}"
+
+          echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
+          echo "issue_number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "issue_title=${ISSUE_TITLE}" >> "$GITHUB_OUTPUT"
+          echo "branch_name=${BRANCH}" >> "$GITHUB_OUTPUT"
+
+          echo "Resolved: status=$STATUS, issue=#$ISSUE_NUMBER, branch=$BRANCH"
+
+  in-progress:
+    needs: resolve-context
+    if: needs.resolve-context.outputs.status == 'In Progress'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.PROJECT_PAT }}
+
+      - name: Create feature branch
+        env:
+          BRANCH: ${{ needs.resolve-context.outputs.branch_name }}
+        run: |
+          git fetch origin
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Branch $BRANCH already exists, checking it out"
+            git checkout -b "$BRANCH" "origin/$BRANCH"
+          else
+            echo "Creating new branch $BRANCH"
+            git checkout -b "$BRANCH"
+          fi
+
+      - name: Update TASKS.md
+        env:
+          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
+          ISSUE_TITLE: ${{ needs.resolve-context.outputs.issue_title }}
+        run: |
+          chmod +x .github/scripts/update-tasks.sh
+          .github/scripts/update-tasks.sh in-progress "$ISSUE_NUMBER" "$ISSUE_TITLE"
+
+      - name: Commit and push
+        env:
+          BRANCH: ${{ needs.resolve-context.outputs.branch_name }}
+          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet TASKS.md; then
+            echo "No changes to TASKS.md"
+          else
+            git add TASKS.md
+            git commit -m "chore: mark issue #${ISSUE_NUMBER} as in-progress in TASKS.md"
+          fi
+          git push -u origin "$BRANCH"
+
+      - name: Assign issue to repo owner
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-assignee alexanderwiebe
+
+  done:
+    needs: resolve-context
+    if: needs.resolve-context.outputs.status == 'Done'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.PROJECT_PAT }}
+
+      - name: Update TASKS.md
+        env:
+          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
+          ISSUE_TITLE: ${{ needs.resolve-context.outputs.issue_title }}
+        run: |
+          chmod +x .github/scripts/update-tasks.sh
+          .github/scripts/update-tasks.sh done "$ISSUE_NUMBER" "$ISSUE_TITLE"
+
+      - name: Commit and push to main
+        env:
+          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet TASKS.md; then
+            echo "No changes to TASKS.md"
+          else
+            git add TASKS.md
+            git commit -m "chore: mark issue #${ISSUE_NUMBER} as done in TASKS.md"
+            git push origin main
+          fi
+
+      - name: Close issue
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          ISSUE_NUMBER: ${{ needs.resolve-context.outputs.issue_number }}
+        run: |
+          gh issue close "$ISSUE_NUMBER" --comment "Closed automatically — project board moved to Done."
