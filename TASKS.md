@@ -2,17 +2,17 @@
 
 ## 1. SVG Design Surface
 
-> Status: In Progress
+> Status: Done
 
 Full-viewport SVG element rendered on the workspace page, serving as the canvas for all visual editing.
 
 ### Subtasks
 
-- [ ] **1.1** Add an `<svg>` element to the workspace component that fills the available viewport (below any top nav/toolbar)
-- [ ] **1.2** Set up a coordinate system with a root `<g>` transform group for pan/zoom (all nodes/edges render inside this group)
-- [ ] **1.3** Apply CSS to remove scrollbars and prevent default browser drag/select behavior on the SVG
-- [ ] **1.4** Create an Angular component (`SvgCanvasComponent`) that owns the SVG element and exposes the transform group
-- [ ] **1.5** Add the canvas component to the workspace route/page layout
+- [x] **1.1** Add an `<svg>` element to the workspace component that fills the available viewport (below any top nav/toolbar)
+- [x] **1.2** Set up a coordinate system with a root `<g>` transform group for pan/zoom (all nodes/edges render inside this group)
+- [x] **1.3** Apply CSS to remove scrollbars and prevent default browser drag/select behavior on the SVG
+- [x] **1.4** Create an Angular component (`SvgCanvasComponent`) that owns the SVG element and exposes the transform group
+- [x] **1.5** Add the canvas component to the workspace route/page layout
 
 ### Acceptance Criteria
 
