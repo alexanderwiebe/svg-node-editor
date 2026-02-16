@@ -13,6 +13,7 @@ import { WorkspaceStore } from '../store/workspace.store';
 import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component';
 import { TagInputComponent } from './tag-input.component';
 import { selectAllTags } from '../store/workspace.selectors';
+import { SvgCanvasComponent } from '../../editor/components/svg-canvas.component';
 
 @Component({
   selector: 'app-workspace-page',
@@ -27,125 +28,136 @@ import { selectAllTags } from '../store/workspace.selectors';
     MatIconModule,
     MatCardModule,
     MatDialogModule,
-    TagInputComponent
+    TagInputComponent,
+    SvgCanvasComponent
   ],
   template: `
-    <div class="workspace-container">
-      <div class="workspace-header">
-        <div class="header-content">
-          @if (isEditMode()) {
-            <!-- Title -->
-            @if (isEditingTitle()) {
-              <input
-                class="title-input"
-                [(ngModel)]="editedTitle"
-                (blur)="saveTitleEdit()"
-                (keyup.enter)="saveTitleEdit()"
-                (keyup.escape)="cancelTitleEdit()"
-                #titleInput
-                data-testid="workspace-title-input">
-            } @else {
-              <h1 class="editable-title" (click)="startTitleEdit()" data-testid="workspace-title">
-                {{ currentWorkspaceName() }}
-                <mat-icon class="edit-hint">edit</mat-icon>
-              </h1>
-            }
-
-            <!-- Tags -->
-            <div class="header-section">
-              @if (isEditingTags()) {
-                <div class="tags-edit-container">
-                  <mat-chip-grid #chipGrid>
-                    @for (tag of workspaceTags(); track tag) {
-                      <mat-chip-row
-                        (removed)="removeTag(tag)"
-                        [editable]="false"
-                        data-testid="tag-chip">
-                        {{ tag }}
-                        <button matChipRemove>
-                          <mat-icon>cancel</mat-icon>
-                        </button>
-                      </mat-chip-row>
-                    }
-                  </mat-chip-grid>
-                  <input
-                    class="tag-input-field"
-                    placeholder="Add tag and press Enter..."
-                    [(ngModel)]="newTag"
-                    (keyup.enter)="addTag()"
-                    (blur)="saveTagsEdit()"
-                    (keyup.escape)="cancelTagsEdit()"
-                    #tagInputField
-                    data-testid="tag-input-field">
-                </div>
-              } @else {
-                <div class="editable-section tags-display" (click)="startTagsEdit()" data-testid="workspace-tags">
-                  @if (workspaceTags().length > 0) {
-                    @for (tag of workspaceTags(); track tag) {
-                      <span class="tag-chip">{{ tag }}</span>
-                    }
-                  } @else {
-                    <span class="placeholder">No tags (click to add)</span>
-                  }
-                  <mat-icon class="edit-hint">edit</mat-icon>
-                </div>
-              }
-            </div>
-
-            <!-- Description -->
-            <div class="header-section">
-              @if (isEditingDescription()) {
-                <textarea
-                  class="description-input"
-                  [(ngModel)]="editedDescription"
-                  (blur)="saveDescriptionEdit()"
-                  (keyup.escape)="cancelDescriptionEdit()"
-                  #descriptionInput
-                  rows="3"
-                  data-testid="workspace-description-input">
-                </textarea>
-              } @else {
-                <div class="editable-section description-display" (click)="startDescriptionEdit()" data-testid="workspace-description">
-                  @if (currentWorkspaceDescription()) {
-                    <p>{{ currentWorkspaceDescription() }}</p>
-                  } @else {
-                    <p class="placeholder">No description (click to add)</p>
-                  }
-                  <mat-icon class="edit-hint">edit</mat-icon>
-                </div>
-              }
-            </div>
+    @if (isEditMode()) {
+      <div class="title-bar">
+        <div class="title-bar-left" (click)="toggleMetadata()">
+          <span class="chevron">{{ metadataExpanded() ? '▼' : '▸' }}</span>
+          @if (isEditingTitle()) {
+            <input
+              class="title-input"
+              [(ngModel)]="editedTitle"
+              (blur)="saveTitleEdit()"
+              (keyup.enter)="saveTitleEdit()"
+              (keyup.escape)="cancelTitleEdit()"
+              (click)="$event.stopPropagation()"
+              #titleInput
+              data-testid="workspace-title-input">
           } @else {
-            <h1>New Workspace</h1>
+            <h1 class="title" (dblclick)="startTitleEdit(); $event.stopPropagation()" data-testid="workspace-title">
+              {{ currentWorkspaceName() }}
+            </h1>
           }
         </div>
-        <div class="header-actions">
-          @if (isEditMode()) {
-            <button
-              mat-raised-button
-              color="warn"
-              (click)="deleteWorkspace()"
-              [disabled]="store.loading()"
-              data-testid="delete-workspace-button">
-              <mat-icon>delete</mat-icon>
-              Delete
-            </button>
-          } @else {
-            <button
-              mat-raised-button
-              color="primary"
-              (click)="saveWorkspace()"
-              [disabled]="!workspaceForm.valid || store.loading()"
-              data-testid="save-workspace-button">
-              <mat-icon>save</mat-icon>
-              Save Workspace
-            </button>
-          }
+        <div class="title-bar-actions">
+          <button
+            mat-icon-button
+            color="warn"
+            (click)="deleteWorkspace()"
+            [disabled]="store.loading()"
+            data-testid="delete-workspace-button">
+            <mat-icon>delete</mat-icon>
+          </button>
         </div>
       </div>
 
-      <!-- Form only shown for new workspace -->
-      @if (!isEditMode()) {
+      <div class="metadata-pane" [class.expanded]="metadataExpanded()">
+        <div class="metadata-content">
+          <!-- Tags -->
+          <div class="meta-section">
+            @if (isEditingTags()) {
+              <div class="tags-edit-container">
+                <mat-chip-grid #chipGrid>
+                  @for (tag of workspaceTags(); track tag) {
+                    <mat-chip-row
+                      (removed)="removeTag(tag)"
+                      [editable]="false"
+                      data-testid="tag-chip">
+                      {{ tag }}
+                      <button matChipRemove (click)="removeTag(tag); $event.stopPropagation()" (mousedown)="$event.preventDefault()">
+                        <mat-icon>cancel</mat-icon>
+                      </button>
+                    </mat-chip-row>
+                  }
+                </mat-chip-grid>
+                <input
+                  class="tag-input-field"
+                  placeholder="Add tag and press Enter..."
+                  [(ngModel)]="newTag"
+                  (keyup.enter)="addTag()"
+                  (blur)="saveTagsEdit()"
+                  (keyup.escape)="cancelTagsEdit()"
+                  #tagInputField
+                  data-testid="tag-input-field">
+              </div>
+            } @else {
+              <div class="editable-section tags-display" (click)="startTagsEdit()" data-testid="workspace-tags">
+                @if (workspaceTags().length > 0) {
+                  @for (tag of workspaceTags(); track tag) {
+                    <span class="tag-chip">{{ tag }}</span>
+                  }
+                } @else {
+                  <span class="placeholder">No tags (click to add)</span>
+                }
+                <mat-icon class="edit-hint">edit</mat-icon>
+              </div>
+            }
+          </div>
+
+          <!-- Description -->
+          <div class="meta-section">
+            @if (isEditingDescription()) {
+              <textarea
+                class="description-input"
+                [(ngModel)]="editedDescription"
+                (blur)="saveDescriptionEdit()"
+                (keyup.escape)="cancelDescriptionEdit()"
+                #descriptionInput
+                rows="3"
+                data-testid="workspace-description-input">
+              </textarea>
+            } @else {
+              <div class="editable-section description-display" (click)="startDescriptionEdit()" data-testid="workspace-description">
+                @if (currentWorkspaceDescription()) {
+                  <p>{{ currentWorkspaceDescription() }}</p>
+                } @else {
+                  <p class="placeholder">No description (click to add)</p>
+                }
+                <mat-icon class="edit-hint">edit</mat-icon>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      @if (store.error()) {
+        <div class="error-message" data-testid="error-message">
+          {{ store.error() }}
+        </div>
+      }
+
+      <div class="canvas-area">
+        <app-svg-canvas />
+      </div>
+    } @else {
+      <!-- New workspace form -->
+      <div class="new-workspace-container">
+        <div class="workspace-header">
+          <h1>New Workspace</h1>
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="saveWorkspace()"
+            [disabled]="!workspaceForm.valid || store.loading()"
+            data-testid="save-workspace-button">
+            <mat-icon>save</mat-icon>
+            Save Workspace
+          </button>
+        </div>
+
         <mat-card class="form-card">
           <mat-card-content>
             <form [formGroup]="workspaceForm" class="workspace-form">
@@ -190,93 +202,100 @@ import { selectAllTags } from '../store/workspace.selectors';
             }
           </mat-card-content>
         </mat-card>
-      }
-
-      @if (store.error() && isEditMode()) {
-        <div class="error-message" data-testid="error-message">
-          {{ store.error() }}
-        </div>
-      }
-    </div>
+      </div>
+    }
   `,
   styles: `
-    .workspace-container {
-      padding: 2rem;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-
-    .workspace-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 2rem;
-      margin-bottom: 2rem;
-    }
-
-    .header-content {
-      flex: 1;
+    :host {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      height: 100%;
     }
 
-    .workspace-header h1 {
-      margin: 0;
-      font-size: 2rem;
-      font-weight: 400;
+    .title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid #e0e0e0;
+      flex-shrink: 0;
     }
 
-    .editable-title {
-      cursor: pointer;
+    .title-bar-left {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      transition: color 0.2s;
+      cursor: pointer;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .chevron {
+      font-size: 0.875rem;
+      color: #666;
+      flex-shrink: 0;
+    }
+
+    .title {
       margin: 0;
-    }
-
-    .editable-title:hover {
-      color: #1976d2;
-    }
-
-    .editable-title .edit-hint {
-      font-size: 1.2rem;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-
-    .editable-title:hover .edit-hint {
-      opacity: 0.6;
+      font-size: 1.25rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .title-input {
-      font-size: 2rem;
-      font-weight: 400;
+      font-size: 1.25rem;
+      font-weight: 500;
       border: 2px solid #1976d2;
-      padding: 0.5rem;
+      padding: 0.25rem 0.5rem;
       border-radius: 4px;
       font-family: inherit;
       outline: none;
-      width: 100%;
-      max-width: 600px;
+      flex: 1;
+      min-width: 0;
     }
 
-    .header-section {
+    .title-bar-actions {
+      flex-shrink: 0;
+    }
+
+    .metadata-pane {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      border-bottom: 1px solid transparent;
+      flex-shrink: 0;
+    }
+
+    .metadata-pane.expanded {
+      max-height: 300px;
+      border-bottom-color: #e0e0e0;
+    }
+
+    .metadata-content {
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .meta-section {
       display: flex;
       flex-direction: column;
     }
 
     .editable-section {
       cursor: pointer;
-      padding: 0.75rem;
+      padding: 0.5rem;
       border-radius: 4px;
-      border: 2px solid transparent;
+      border: 1px solid transparent;
       transition: all 0.2s;
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      min-height: 40px;
+      min-height: 36px;
     }
 
     .editable-section:hover {
@@ -301,12 +320,10 @@ import { selectAllTags } from '../store/workspace.selectors';
 
     .tag-chip {
       display: inline-block;
-      padding: 0.25rem 0.75rem;
+      padding: 0.2rem 0.6rem;
       background-color: #e0e0e0;
       border-radius: 16px;
-      font-size: 0.875rem;
-      margin-right: 0.5rem;
-      margin-bottom: 0.25rem;
+      font-size: 0.8rem;
     }
 
     .placeholder {
@@ -316,7 +333,7 @@ import { selectAllTags } from '../store/workspace.selectors';
 
     .description-display p {
       margin: 0;
-      line-height: 1.5;
+      line-height: 1.4;
     }
 
     .tags-edit-container {
@@ -326,7 +343,6 @@ import { selectAllTags } from '../store/workspace.selectors';
       padding: 0.5rem;
       border: 2px solid #1976d2;
       border-radius: 4px;
-      background-color: white;
     }
 
     .tag-input-field {
@@ -340,24 +356,45 @@ import { selectAllTags } from '../store/workspace.selectors';
     .description-input {
       width: 100%;
       border: 2px solid #1976d2;
-      padding: 0.75rem;
+      padding: 0.5rem;
       border-radius: 4px;
       font-family: inherit;
-      font-size: 1rem;
+      font-size: 0.9rem;
       outline: none;
       resize: vertical;
+      box-sizing: border-box;
     }
 
-    .header-actions {
-      display: flex;
-      gap: 1rem;
+    .canvas-area {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .error-message {
+      color: #f44336;
+      padding: 0.5rem 1rem;
+      background-color: #ffebee;
       flex-shrink: 0;
     }
 
-    .header-actions button {
+    /* New workspace form styles */
+    .new-workspace-container {
+      padding: 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .workspace-header {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .workspace-header h1 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 400;
     }
 
     .form-card {
@@ -372,14 +409,6 @@ import { selectAllTags } from '../store/workspace.selectors';
 
     .full-width {
       width: 100%;
-    }
-
-    .error-message {
-      color: #f44336;
-      margin-top: 1rem;
-      padding: 1rem;
-      background-color: #ffebee;
-      border-radius: 4px;
     }
   `
 })
@@ -398,6 +427,9 @@ export class WorkspacePageComponent implements OnInit {
 
   workspaceId = computed(() => this.route.snapshot.paramMap.get('id'));
   isEditMode = computed(() => !!this.workspaceId());
+
+  // Metadata pane toggle
+  metadataExpanded = signal(false);
 
   // Title editing
   isEditingTitle = signal(false);
@@ -450,6 +482,10 @@ export class WorkspacePageComponent implements OnInit {
         this.router.navigate(['/workspace/new']);
       }
     }
+  }
+
+  toggleMetadata() {
+    this.metadataExpanded.update(v => !v);
   }
 
   onTagsChange(tags: string[]) {
