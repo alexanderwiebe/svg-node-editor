@@ -24,6 +24,8 @@ Full-viewport SVG element rendered on the workspace page, serving as the canvas 
 
 ## 2. Viewport Controls
 
+> Status: In Progress
+
 Pan, zoom, and fit-to-view so the user can navigate a large graph.
 
 ### Subtasks
