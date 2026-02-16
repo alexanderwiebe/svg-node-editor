@@ -2,6 +2,8 @@
 
 ## 1. SVG Design Surface
 
+> Status: In Progress
+
 Full-viewport SVG element rendered on the workspace page, serving as the canvas for all visual editing.
 
 ### Subtasks
