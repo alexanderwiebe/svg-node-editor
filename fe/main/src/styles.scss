@@ -43,6 +43,8 @@ $theme: mat.m2-define-light-theme((
 @include mat.core();
 @include mat.all-component-themes($theme);
 
+@import 'ng-diagram/styles.css';
+
 // Base styles
 html, body {
   height: 100%;
