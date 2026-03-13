@@ -1,4 +1,6 @@
-import { Component, inject, OnInit, computed, signal, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, inject, computed, signal, effect, ViewChild, ElementRef } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map } from 'rxjs';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -420,7 +422,7 @@ import { NgDiagramComponent, initializeModel, provideNgDiagram } from 'ng-diagra
     }
   `
 })
-export class WorkspacePageComponent implements OnInit {
+export class WorkspacePageComponent {
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -448,7 +450,7 @@ export class WorkspacePageComponent implements OnInit {
 
   readonly separatorKeysCodes: number[] = [ENTER, COMMA];
 
-  workspaceId = computed(() => this.route.snapshot.paramMap.get('id'));
+  workspaceId = toSignal(this.route.paramMap.pipe(map(p => p.get('id'))), { initialValue: null });
   isEditMode = computed(() => !!this.workspaceId());
 
   // Metadata pane toggle
@@ -489,22 +491,22 @@ export class WorkspacePageComponent implements OnInit {
     description: ['', Validators.required]
   });
 
-  ngOnInit() {
-    const id = this.workspaceId();
-    if (id) {
-      // Load existing workspace data
-      const workspace = this.store.getWorkspaceById(id);
-      if (workspace) {
-        this.workspaceForm.patchValue({
-          name: workspace.name,
-          description: workspace.description
-        });
-        this.workspaceTags.set(workspace.tags);
-      } else {
-        // Workspace not found, redirect to new workspace
-        this.router.navigate(['/workspace/new']);
+  constructor() {
+    effect(() => {
+      const id = this.workspaceId();
+      if (id) {
+        const workspace = this.store.getWorkspaceById(id);
+        if (workspace) {
+          this.workspaceForm.patchValue({
+            name: workspace.name,
+            description: workspace.description
+          });
+          this.workspaceTags.set(workspace.tags);
+        } else {
+          this.router.navigate(['/workspace/new']);
+        }
       }
-    }
+    });
   }
 
   toggleMetadata() {
