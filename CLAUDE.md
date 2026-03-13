@@ -159,15 +159,18 @@ When the user asks to create a PR, follow these steps in order:
 6. **Create the PR** using `gh pr create` with:
    - A clear summary of what changed
    - A test plan section
-   - An embedded screenshot section using **absolute `raw.githubusercontent.com` URLs** — one screenshot per key UI state the PR introduces
+   - A screenshot table with links to each `pr-screenshots/` file using GitHub blob URLs:
+     ```
+     | State | Link |
+     |-------|------|
+     | Empty canvas | [01-empty-canvas.png](https://github.com/alexanderwiebe/svg-node-editor/blob/BRANCH/pr-screenshots/01-empty-canvas.png) |
+     ```
 
-   > **Important**: GitHub PR descriptions do NOT resolve relative image paths from the PR branch. Always use absolute URLs:
-   > ```
-   > ![Alt text](https://raw.githubusercontent.com/alexanderwiebe/svg-node-editor/BRANCH_NAME/pr-screenshots/filename.png)
-   > ```
-   > Substitute `BRANCH_NAME` with the actual feature branch name (e.g. `feat/interactive-diagram-editor`).
+   > **Why links, not inline images**: This is a private repo. GitHub's image proxy (Camo) cannot authenticate against `raw.githubusercontent.com`, so `![img](raw URL)` always renders broken. Clickable blob links work fine — authenticated users click through to view the image on GitHub. Screenshots are also visible inline in the PR's **Files changed** tab.
+   >
+   > If the repo is ever made public, switch to `![alt](https://raw.githubusercontent.com/alexanderwiebe/svg-node-editor/BRANCH/pr-screenshots/file.png)` for true inline rendering.
 
-The `pr-screenshots/` folder is intentionally committed to branches (not gitignored) so screenshots are accessible via raw.githubusercontent.com. It is cleaned up when branches are deleted.
+The `pr-screenshots/` folder is intentionally committed to branches (not gitignored) so screenshots are accessible to authenticated reviewers. It is cleaned up when branches are deleted.
 
 ## Development Container
 
