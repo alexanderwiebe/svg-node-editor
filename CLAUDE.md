@@ -159,9 +159,15 @@ When the user asks to create a PR, follow these steps in order:
 6. **Create the PR** using `gh pr create` with:
    - A clear summary of what changed
    - A test plan section
-   - An embedded screenshot section using markdown `![description](pr-screenshots/filename.png)` — one screenshot per key UI state the PR introduces
+   - An embedded screenshot section using **absolute `raw.githubusercontent.com` URLs** — one screenshot per key UI state the PR introduces
 
-The `pr-screenshots/` folder is intentionally committed to branches (not gitignored) so screenshots appear inline in the PR on GitHub. It is cleaned up when branches are deleted.
+   > **Important**: GitHub PR descriptions do NOT resolve relative image paths from the PR branch. Always use absolute URLs:
+   > ```
+   > ![Alt text](https://raw.githubusercontent.com/alexanderwiebe/svg-node-editor/BRANCH_NAME/pr-screenshots/filename.png)
+   > ```
+   > Substitute `BRANCH_NAME` with the actual feature branch name (e.g. `feat/interactive-diagram-editor`).
+
+The `pr-screenshots/` folder is intentionally committed to branches (not gitignored) so screenshots are accessible via raw.githubusercontent.com. It is cleaned up when branches are deleted.
 
 ## Development Container
 
