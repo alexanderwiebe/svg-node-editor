@@ -15,7 +15,7 @@ import { WorkspaceStore } from '../store/workspace.store';
 import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component';
 import { TagInputComponent } from './tag-input.component';
 import { selectAllTags } from '../store/workspace.selectors';
-import { NgDiagramComponent, initializeModel, provideNgDiagram } from 'ng-diagram';
+import { DiagramEditorComponent } from '../../editor/components/diagram-editor.component';
 
 @Component({
   selector: 'app-workspace-page',
@@ -31,9 +31,8 @@ import { NgDiagramComponent, initializeModel, provideNgDiagram } from 'ng-diagra
     MatCardModule,
     MatDialogModule,
     TagInputComponent,
-    NgDiagramComponent
+    DiagramEditorComponent
   ],
-  providers: [provideNgDiagram()],
   template: `
     @if (isEditMode()) {
       <div class="title-bar">
@@ -143,7 +142,7 @@ import { NgDiagramComponent, initializeModel, provideNgDiagram } from 'ng-diagra
       }
 
       <div class="canvas-area">
-        <ng-diagram [model]="diagramModel" />
+        <app-diagram-editor />
       </div>
     } @else {
       <!-- New workspace form -->
@@ -374,7 +373,7 @@ import { NgDiagramComponent, initializeModel, provideNgDiagram } from 'ng-diagra
       display: flex;
     }
 
-    .canvas-area ng-diagram {
+    .canvas-area app-diagram-editor {
       flex: 1;
       width: 100%;
       height: 100%;
@@ -428,21 +427,6 @@ export class WorkspacePageComponent {
   private router = inject(Router);
   private dialog = inject(MatDialog);
   readonly store = inject(WorkspaceStore);
-
-  diagramModel = initializeModel({
-    nodes: [
-      { id: '1', position: { x: 100, y: 100 }, data: { label: 'Node 1' } },
-      { id: '2', position: { x: 400, y: 100 }, data: { label: 'Node 2' } },
-    ],
-    edges: [{
-      id: '1',
-      source: '1',
-      sourcePort: 'port-right',
-      targetPort: 'port-left',
-      target: '2',
-      data: {},
-    }],
-  });
 
   @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
   @ViewChild('tagInputField') tagInputField?: ElementRef<HTMLInputElement>;

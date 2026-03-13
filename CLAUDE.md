@@ -131,6 +131,38 @@ fe/main/src/app/
 - When all subtasks and acceptance criteria for an issue are met, close it with `gh issue close <N>`
 - If work on an issue reveals new tasks, create follow-up issues and link them
 
+### Plan & Prompt Persistence
+
+Every significant feature should have its plan and triggering prompt saved to the repo so the decision trail is reviewable:
+
+- **`plans/<topic>.md`** — the implementation plan (architecture, work packages, file list)
+- **`prompts/<topic>.md`** — the prompt that generated the plan
+
+Use the same filename stem for both (e.g., `interactive-diagram-editor.md`). Names should be kebab-case and descriptive. Commit these alongside the feature code.
+
+### Pull Request Process
+
+When the user asks to create a PR, follow these steps in order:
+
+1. **Ensure a feature branch exists** — create `feat/<issue-number>-<short-name>` if not already on one
+2. **Commit all code changes** with a conventional commit message
+3. **Save plan and prompt files** to `plans/` and `prompts/` and commit them
+4. **Run e2e tests with screenshots:**
+   ```bash
+   cd svg-node-editor && bun run e2e:test
+   ```
+   The tests capture screenshots automatically via `page.screenshot()` into `pr-screenshots/`. Playwright also records video (retained on failure) in `test-results/`.
+5. **Commit pr-screenshots** to the branch so GitHub can render them in the PR:
+   ```bash
+   git add pr-screenshots/ && git commit -m "chore: add pr screenshots"
+   ```
+6. **Create the PR** using `gh pr create` with:
+   - A clear summary of what changed
+   - A test plan section
+   - An embedded screenshot section using markdown `![description](pr-screenshots/filename.png)` — one screenshot per key UI state the PR introduces
+
+The `pr-screenshots/` folder is intentionally committed to branches (not gitignored) so screenshots appear inline in the PR on GitHub. It is cleaned up when branches are deleted.
+
 ## Development Container
 
 The project includes a devcontainer configuration for VS Code:
