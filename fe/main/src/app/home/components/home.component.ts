@@ -51,10 +51,10 @@ import { homeEvents } from '../store/home.events';
             @if (store.loading()) {
               <mat-spinner diameter="20"></mat-spinner>
             } @else {
-              <ng-container>
+              <span class="btn-content">
                 <mat-icon>send</mat-icon>
                 Test API
-              </ng-container>
+              </span>
             }
           </button>
         </mat-card-actions>
@@ -95,8 +95,10 @@ import { homeEvents } from '../store/home.events';
       margin-right: 8px;
     }
 
-    button mat-icon {
-      margin-right: 8px;
+    .btn-content {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
     }
   `
 })
