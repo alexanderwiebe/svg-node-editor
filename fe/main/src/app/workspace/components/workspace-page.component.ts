@@ -13,7 +13,7 @@ import { WorkspaceStore } from '../store/workspace.store';
 import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component';
 import { TagInputComponent } from './tag-input.component';
 import { selectAllTags } from '../store/workspace.selectors';
-import { SvgCanvasComponent } from '../../editor/components/svg-canvas.component';
+import { NgDiagramComponent, initializeModel, provideNgDiagram } from 'ng-diagram';
 
 @Component({
   selector: 'app-workspace-page',
@@ -29,8 +29,9 @@ import { SvgCanvasComponent } from '../../editor/components/svg-canvas.component
     MatCardModule,
     MatDialogModule,
     TagInputComponent,
-    SvgCanvasComponent
+    NgDiagramComponent
   ],
+  providers: [provideNgDiagram()],
   template: `
     @if (isEditMode()) {
       <div class="title-bar">
@@ -140,7 +141,7 @@ import { SvgCanvasComponent } from '../../editor/components/svg-canvas.component
       }
 
       <div class="canvas-area">
-        <app-svg-canvas />
+        <ng-diagram [model]="diagramModel" />
       </div>
     } @else {
       <!-- New workspace form -->
@@ -368,6 +369,13 @@ import { SvgCanvasComponent } from '../../editor/components/svg-canvas.component
     .canvas-area {
       flex: 1;
       min-height: 0;
+      display: flex;
+    }
+
+    .canvas-area ng-diagram {
+      flex: 1;
+      width: 100%;
+      height: 100%;
     }
 
     .error-message {
@@ -418,6 +426,21 @@ export class WorkspacePageComponent implements OnInit {
   private router = inject(Router);
   private dialog = inject(MatDialog);
   readonly store = inject(WorkspaceStore);
+
+  diagramModel = initializeModel({
+    nodes: [
+      { id: '1', position: { x: 100, y: 100 }, data: { label: 'Node 1' } },
+      { id: '2', position: { x: 400, y: 100 }, data: { label: 'Node 2' } },
+    ],
+    edges: [{
+      id: '1',
+      source: '1',
+      sourcePort: 'port-right',
+      targetPort: 'port-left',
+      target: '2',
+      data: {},
+    }],
+  });
 
   @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
   @ViewChild('tagInputField') tagInputField?: ElementRef<HTMLInputElement>;
