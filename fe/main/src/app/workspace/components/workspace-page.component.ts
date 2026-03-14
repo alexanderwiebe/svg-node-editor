@@ -13,6 +13,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { WorkspaceStore } from '../store/workspace.store';
 import type { DiagramData } from '../models/workspace.model';
+import { EMPTY_DIAGRAM } from '../models/workspace.model';
 import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component';
 import { TagInputComponent } from './tag-input.component';
 import { selectAllTags } from '../store/workspace.selectors';
@@ -143,10 +144,16 @@ import { DiagramEditorComponent } from '../../editor/components/diagram-editor.c
       }
 
       <div class="canvas-area">
-        @for (id of [workspaceId()]; track id) {
-          <app-diagram-editor
-            [initialDiagram]="currentDiagram()"
-            (diagramChanged)="onDiagramChanged($event)" />
+        <!-- Guard ensures DiagramEditorComponent only mounts once workspace data is in the store.
+             Without this, a full-page reload races loadWorkspaces() and the editor seeds with EMPTY_DIAGRAM. -->
+        @if (workspaceReady()) {
+          <!-- @for with a single-element array forces DiagramEditorComponent to remount when workspaceId
+               changes. ng-diagram has no public reset API, so this is the idiomatic Angular keyed-remount pattern. -->
+          @for (id of [workspaceId()]; track id) {
+            <app-diagram-editor
+              [initialDiagram]="currentDiagram()"
+              (diagramChanged)="onDiagramChanged($event)" />
+          }
         }
       </div>
     } @else {
@@ -465,12 +472,19 @@ export class WorkspacePageComponent {
   existingTags = selectAllTags(this.store.workspaces);
 
   // Diagram
+  workspaceReady = computed(() => {
+    const id = this.workspaceId();
+    if (!id) return false;
+    return !!this.store.getWorkspaceById(id);
+  });
+
   currentDiagram = computed(() => {
     const id = this.workspaceId();
-    if (!id) return { nodes: [], edges: [] } as DiagramData;
-    return this.store.getWorkspaceById(id)?.diagram ?? { nodes: [], edges: [] };
+    if (!id) return EMPTY_DIAGRAM;
+    return this.store.getWorkspaceById(id)?.diagram ?? EMPTY_DIAGRAM;
   });
   private diagramSave$ = new Subject<DiagramData>();
+  private pendingDiagram: DiagramData | null = null;
 
   // Description editing
   isEditingDescription = signal(false);
@@ -500,7 +514,10 @@ export class WorkspacePageComponent {
             description: workspace.description
           });
           this.workspaceTags.set(workspace.tags);
-        } else {
+        } else if (!this.store.loading()) {
+          // Only redirect when loading is complete — on full page reload, the store is
+          // empty until loadWorkspaces() finishes. Redirecting during loading would
+          // discard a valid workspace URL before backend data arrives.
           this.router.navigate(['/workspace/new']);
         }
       }
@@ -510,16 +527,25 @@ export class WorkspacePageComponent {
       debounceTime(500),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(diagram => {
+      this.pendingDiagram = null;
       const id = this.workspaceId();
-      console.log('[WorkspacePage] debounce fired, saving diagram for workspace=', id, 'nodes=', diagram.nodes.length);
       if (id) {
         this.store.saveDiagram(id, diagram);
+      }
+    });
+
+    this.destroyRef.onDestroy(() => {
+      if (this.pendingDiagram) {
+        const id = this.workspaceId();
+        if (id) {
+          this.store.saveDiagram(id, this.pendingDiagram);
+        }
       }
     });
   }
 
   onDiagramChanged(diagram: DiagramData) {
-    console.log('[WorkspacePage] onDiagramChanged received, nodes=', diagram.nodes.length, 'edges=', diagram.edges.length);
+    this.pendingDiagram = diagram;
     this.diagramSave$.next(diagram);
   }
 

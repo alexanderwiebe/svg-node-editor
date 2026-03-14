@@ -4,7 +4,7 @@ import { map, delay, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { mapResponse } from '@ngrx/operators';
 import { workspaceEvents } from './workspace.events';
-import { Workspace } from '../models/workspace.model';
+import { Workspace, EMPTY_DIAGRAM } from '../models/workspace.model';
 
 export function createWorkspaceEffects(store: any) {
   const events = inject(Events);
@@ -21,7 +21,7 @@ export function createWorkspaceEffects(store: any) {
               name: data.name,
               tags: data.tags,
               description: data.description,
-              diagram: { nodes: [], edges: [] },
+              diagram: EMPTY_DIAGRAM,
               createdAt: new Date(),
               updatedAt: new Date()
             };

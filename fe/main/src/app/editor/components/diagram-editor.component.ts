@@ -11,6 +11,7 @@ import { NodePaletteComponent } from './node-palette.component';
 import { PropertiesPanelComponent } from './properties-panel.component';
 import { DefaultNodeComponent } from './default-node.component';
 import type { DiagramData } from '../../workspace/models/workspace.model';
+import { EMPTY_DIAGRAM } from '../../workspace/models/workspace.model';
 
 @Component({
   selector: 'app-diagram-editor',
@@ -73,13 +74,13 @@ import type { DiagramData } from '../../workspace/models/workspace.model';
 export class DiagramEditorComponent implements AfterViewInit {
   private modelService = inject(NgDiagramModelService);
 
-  initialDiagram = input<DiagramData>({ nodes: [], edges: [] });
+  initialDiagram = input<DiagramData>(EMPTY_DIAGRAM);
   diagramChanged = output<DiagramData>();
 
   selectedNodes = signal<Node[]>([]);
   selectedEdges = signal<Edge[]>([]);
 
-  diagramModel = initializeModel({ nodes: [], edges: [] });
+  diagramModel = initializeModel(EMPTY_DIAGRAM);
 
   readonly nodeTemplateMap = new NgDiagramNodeTemplateMap([
     ['default', DefaultNodeComponent],
@@ -112,11 +113,15 @@ export class DiagramEditorComponent implements AfterViewInit {
   }
 
   onDiagramChanged() {
-    console.log('[DiagramEditor] onDiagramChanged called, watching=', this.watching);
     if (!this.watching) return;
-    const nodes = this.modelService.nodes();
-    const edges = this.modelService.edges();
-    console.log('[DiagramEditor] emitting diagramChanged, nodes=', nodes.length, 'edges=', edges.length);
-    this.diagramChanged.emit({ nodes, edges });
+    // ng-diagram fires events like paletteItemDropped before its applyUpdate() resolves,
+    // so modelService.nodes/edges() would be stale at the time of the call.
+    // Deferring by one macrotask guarantees the model signals reflect the latest state.
+    setTimeout(() => {
+      if (!this.watching) return;
+      const nodes = this.modelService.nodes();
+      const edges = this.modelService.edges();
+      this.diagramChanged.emit({ nodes, edges });
+    }, 0);
   }
 }

@@ -5,6 +5,8 @@ export interface DiagramData {
   edges: Edge[];
 }
 
+export const EMPTY_DIAGRAM: DiagramData = { nodes: [], edges: [] };
+
 export interface Workspace {
   id: string;
   name: string;

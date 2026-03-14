@@ -1,13 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { cleanupAllWorkspaces } from './test-helpers';
 
 test.afterEach(async ({ request }) => {
-  const response = await request.get('http://localhost:3000/workspaces');
-  if (response.ok()) {
-    const workspaces = await response.json();
-    for (const workspace of workspaces) {
-      await request.delete(`http://localhost:3000/workspaces/${workspace.id}`);
-    }
-  }
+  await cleanupAllWorkspaces(request);
 });
 
 test('debug workspace save and store', async ({ page }) => {

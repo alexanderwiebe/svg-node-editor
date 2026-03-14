@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { cleanupAllWorkspaces } from './test-helpers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOTS_DIR = path.join(__dirname, '../../../pr-screenshots');
@@ -31,16 +32,6 @@ async function dragPaletteItemToCanvas(
       y: canvasBox.height * targetFraction.y,
     },
   });
-}
-
-async function cleanupAllWorkspaces(request: import('@playwright/test').APIRequestContext): Promise<void> {
-  const response = await request.get('http://localhost:3000/workspaces');
-  if (response.ok()) {
-    const workspaces = await response.json();
-    for (const workspace of workspaces) {
-      await request.delete(`http://localhost:3000/workspaces/${workspace.id}`);
-    }
-  }
 }
 
 test.describe('Diagram Editor', () => {

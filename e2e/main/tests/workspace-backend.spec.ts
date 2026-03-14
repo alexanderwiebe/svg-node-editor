@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { cleanupAllWorkspaces } from './test-helpers';
 
 /**
  * Backend Integration E2E Tests
@@ -8,16 +9,6 @@ import { test, expect } from '@playwright/test';
  * To test backend integration, set environment.useBackend to true in environment.development.ts
  * and ensure the NestJS backend is running on http://localhost:3000
  */
-
-async function cleanupAllWorkspaces(request: import('@playwright/test').APIRequestContext): Promise<void> {
-  const response = await request.get('http://localhost:3000/workspaces');
-  if (response.ok()) {
-    const workspaces = await response.json();
-    for (const workspace of workspaces) {
-      await request.delete(`http://localhost:3000/workspaces/${workspace.id}`);
-    }
-  }
-}
 
 test.describe('Workspace Backend Integration', () => {
   test.afterEach(async ({ request }) => {
