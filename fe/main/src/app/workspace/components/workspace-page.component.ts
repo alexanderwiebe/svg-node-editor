@@ -1,6 +1,6 @@
-import { Component, inject, computed, signal, effect, ViewChild, ElementRef } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs';
+import { Component, inject, computed, signal, effect, ViewChild, ElementRef, DestroyRef } from '@angular/core';
+import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { map, Subject, debounceTime } from 'rxjs';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -12,6 +12,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { WorkspaceStore } from '../store/workspace.store';
+import type { DiagramData } from '../models/workspace.model';
 import { ConfirmDeleteDialogComponent } from './confirm-delete-dialog.component';
 import { TagInputComponent } from './tag-input.component';
 import { selectAllTags } from '../store/workspace.selectors';
@@ -142,7 +143,11 @@ import { DiagramEditorComponent } from '../../editor/components/diagram-editor.c
       }
 
       <div class="canvas-area">
-        <app-diagram-editor />
+        @for (id of [workspaceId()]; track id) {
+          <app-diagram-editor
+            [initialDiagram]="currentDiagram()"
+            (diagramChanged)="onDiagramChanged($event)" />
+        }
       </div>
     } @else {
       <!-- New workspace form -->
@@ -426,6 +431,7 @@ export class WorkspacePageComponent {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private dialog = inject(MatDialog);
+  private destroyRef = inject(DestroyRef);
   readonly store = inject(WorkspaceStore);
 
   @ViewChild('titleInput') titleInput?: ElementRef<HTMLInputElement>;
@@ -457,6 +463,14 @@ export class WorkspacePageComponent {
   newTag = '';
   workspaceTags = signal<string[]>([]);
   existingTags = selectAllTags(this.store.workspaces);
+
+  // Diagram
+  currentDiagram = computed(() => {
+    const id = this.workspaceId();
+    if (!id) return { nodes: [], edges: [] } as DiagramData;
+    return this.store.getWorkspaceById(id)?.diagram ?? { nodes: [], edges: [] };
+  });
+  private diagramSave$ = new Subject<DiagramData>();
 
   // Description editing
   isEditingDescription = signal(false);
@@ -491,6 +505,22 @@ export class WorkspacePageComponent {
         }
       }
     });
+
+    this.diagramSave$.pipe(
+      debounceTime(500),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(diagram => {
+      const id = this.workspaceId();
+      console.log('[WorkspacePage] debounce fired, saving diagram for workspace=', id, 'nodes=', diagram.nodes.length);
+      if (id) {
+        this.store.saveDiagram(id, diagram);
+      }
+    });
+  }
+
+  onDiagramChanged(diagram: DiagramData) {
+    console.log('[WorkspacePage] onDiagramChanged received, nodes=', diagram.nodes.length, 'edges=', diagram.edges.length);
+    this.diagramSave$.next(diagram);
   }
 
   toggleMetadata() {

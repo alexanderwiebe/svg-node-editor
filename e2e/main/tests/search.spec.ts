@@ -1,6 +1,20 @@
 import { test, expect } from '@playwright/test';
 
+async function cleanupAllWorkspaces(request: import('@playwright/test').APIRequestContext): Promise<void> {
+  const response = await request.get('http://localhost:3000/workspaces');
+  if (response.ok()) {
+    const workspaces = await response.json();
+    for (const workspace of workspaces) {
+      await request.delete(`http://localhost:3000/workspaces/${workspace.id}`);
+    }
+  }
+}
+
 test.describe('Search Functionality', () => {
+  test.afterEach(async ({ request }) => {
+    await cleanupAllWorkspaces(request);
+  });
+
   test.beforeEach(async ({ page }) => {
     // Create some test workspaces for searching
     await page.goto('/workspace/new');

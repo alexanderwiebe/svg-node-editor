@@ -1,5 +1,15 @@
 import { test, expect } from '@playwright/test';
 
+test.afterEach(async ({ request }) => {
+  const response = await request.get('http://localhost:3000/workspaces');
+  if (response.ok()) {
+    const workspaces = await response.json();
+    for (const workspace of workspaces) {
+      await request.delete(`http://localhost:3000/workspaces/${workspace.id}`);
+    }
+  }
+});
+
 test('simple workspace creation', async ({ page }) => {
   // Listen for console logs
   page.on('console', msg => {

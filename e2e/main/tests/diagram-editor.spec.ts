@@ -33,9 +33,23 @@ async function dragPaletteItemToCanvas(
   });
 }
 
+async function cleanupAllWorkspaces(request: import('@playwright/test').APIRequestContext): Promise<void> {
+  const response = await request.get('http://localhost:3000/workspaces');
+  if (response.ok()) {
+    const workspaces = await response.json();
+    for (const workspace of workspaces) {
+      await request.delete(`http://localhost:3000/workspaces/${workspace.id}`);
+    }
+  }
+}
+
 test.describe('Diagram Editor', () => {
   test.beforeEach(async ({ page }) => {
     await createWorkspaceAndNavigate(page);
+  });
+
+  test.afterEach(async ({ request }) => {
+    await cleanupAllWorkspaces(request);
   });
 
   test('should show the palette and empty canvas', async ({ page }) => {

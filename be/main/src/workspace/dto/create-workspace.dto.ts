@@ -1,4 +1,4 @@
-import { IsString, IsArray, IsNotEmpty, ArrayMinSize } from 'class-validator';
+import { IsString, IsArray, IsNotEmpty, IsOptional, IsObject } from 'class-validator';
 
 export class CreateWorkspaceDto {
   @IsString()
@@ -12,4 +12,8 @@ export class CreateWorkspaceDto {
   @IsString()
   @IsNotEmpty()
   description: string;
+
+  @IsOptional()
+  @IsObject()
+  diagram?: { nodes: Record<string, unknown>[]; edges: Record<string, unknown>[] };
 }

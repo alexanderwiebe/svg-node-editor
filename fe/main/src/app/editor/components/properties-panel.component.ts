@@ -1,4 +1,4 @@
-import { Component, input, inject } from '@angular/core';
+import { Component, input, output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -214,6 +214,7 @@ import type { Node, Edge } from 'ng-diagram';
 export class PropertiesPanelComponent {
   selectedNodes = input<Node[]>([]);
   selectedEdges = input<Edge[]>([]);
+  diagramChanged = output<void>();
 
   private modelService = inject(NgDiagramModelService);
 
@@ -228,16 +229,19 @@ export class PropertiesPanelComponent {
   updateNodeLabel(node: Node, event: Event) {
     const label = (event.target as HTMLInputElement).value;
     this.modelService.updateNodeData(node.id, { ...(node.data as Record<string, unknown>), label });
+    this.diagramChanged.emit();
   }
 
   updateNodeFill(node: Node, event: Event) {
     const fill = (event.target as HTMLInputElement).value;
     this.modelService.updateNodeData(node.id, { ...(node.data as Record<string, unknown>), fill });
+    this.diagramChanged.emit();
   }
 
   updateNodeStroke(node: Node, event: Event) {
     const stroke = (event.target as HTMLInputElement).value;
     this.modelService.updateNodeData(node.id, { ...(node.data as Record<string, unknown>), stroke });
+    this.diagramChanged.emit();
   }
 
   updateNodeSize(node: Node, dimension: 'width' | 'height', event: Event) {
@@ -247,24 +251,29 @@ export class PropertiesPanelComponent {
       this.modelService.updateNode(node.id, {
         size: { ...currentSize, [dimension]: value }
       });
+      this.diagramChanged.emit();
     }
   }
 
   deleteNode(node: Node) {
     this.modelService.deleteNodes([node.id]);
+    this.diagramChanged.emit();
   }
 
   updateEdgeLabel(edge: Edge, event: Event) {
     const label = (event.target as HTMLInputElement).value;
     this.modelService.updateEdgeData(edge.id, { ...(edge.data as Record<string, unknown>), label });
+    this.diagramChanged.emit();
   }
 
   updateEdgeColor(edge: Edge, event: Event) {
     const color = (event.target as HTMLInputElement).value;
     this.modelService.updateEdgeData(edge.id, { ...(edge.data as Record<string, unknown>), color });
+    this.diagramChanged.emit();
   }
 
   deleteEdge(edge: Edge) {
     this.modelService.deleteEdges([edge.id]);
+    this.diagramChanged.emit();
   }
 }

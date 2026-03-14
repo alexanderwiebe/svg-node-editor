@@ -21,6 +21,7 @@ export function createWorkspaceEffects(store: any) {
               name: data.name,
               tags: data.tags,
               description: data.description,
+              diagram: { nodes: [], edges: [] },
               createdAt: new Date(),
               updatedAt: new Date()
             };

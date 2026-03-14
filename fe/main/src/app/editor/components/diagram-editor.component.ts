@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, input, output, AfterViewInit } from '@angular/core';
 import {
   NgDiagramComponent,
   NgDiagramModelService,
@@ -10,6 +10,7 @@ import type { SelectionChangedEvent, SelectionRemovedEvent, Node, Edge } from 'n
 import { NodePaletteComponent } from './node-palette.component';
 import { PropertiesPanelComponent } from './properties-panel.component';
 import { DefaultNodeComponent } from './default-node.component';
+import type { DiagramData } from '../../workspace/models/workspace.model';
 
 @Component({
   selector: 'app-diagram-editor',
@@ -25,12 +26,19 @@ import { DefaultNodeComponent } from './default-node.component';
           [model]="diagramModel"
           [nodeTemplateMap]="nodeTemplateMap"
           (selectionChanged)="onSelectionChanged($event)"
-          (selectionRemoved)="onSelectionRemoved($event)" />
+          (selectionRemoved)="onSelectionRemoved($event)"
+          (paletteItemDropped)="onDiagramChanged()"
+          (edgeDrawn)="onDiagramChanged()"
+          (nodeDragEnded)="onDiagramChanged()"
+          (nodeResizeEnded)="onDiagramChanged()"
+          (nodeRotateEnded)="onDiagramChanged()"
+          (clipboardPasted)="onDiagramChanged()" />
       </div>
 
       <app-properties-panel
         [selectedNodes]="selectedNodes()"
-        [selectedEdges]="selectedEdges()" />
+        [selectedEdges]="selectedEdges()"
+        (diagramChanged)="onDiagramChanged()" />
     </div>
   `,
   styles: `
@@ -62,8 +70,11 @@ import { DefaultNodeComponent } from './default-node.component';
     }
   `
 })
-export class DiagramEditorComponent {
+export class DiagramEditorComponent implements AfterViewInit {
   private modelService = inject(NgDiagramModelService);
+
+  initialDiagram = input<DiagramData>({ nodes: [], edges: [] });
+  diagramChanged = output<DiagramData>();
 
   selectedNodes = signal<Node[]>([]);
   selectedEdges = signal<Edge[]>([]);
@@ -77,6 +88,19 @@ export class DiagramEditorComponent {
     ['Decision', DefaultNodeComponent],
   ]);
 
+  // Guards onDiagramChanged from firing during initial seeding
+  private watching = false;
+
+  ngAfterViewInit() {
+    const diagram = this.initialDiagram();
+    if (diagram.nodes.length > 0 || diagram.edges.length > 0) {
+      this.modelService.addNodes(diagram.nodes);
+      this.modelService.addEdges(diagram.edges);
+    }
+    // Allow saves only after seeding is fully processed
+    Promise.resolve().then(() => { this.watching = true; });
+  }
+
   onSelectionChanged(event: SelectionChangedEvent) {
     this.selectedNodes.set(event.selectedNodes);
     this.selectedEdges.set(event.selectedEdges);
@@ -85,5 +109,14 @@ export class DiagramEditorComponent {
   onSelectionRemoved(_event: SelectionRemovedEvent) {
     this.selectedNodes.set([]);
     this.selectedEdges.set([]);
+  }
+
+  onDiagramChanged() {
+    console.log('[DiagramEditor] onDiagramChanged called, watching=', this.watching);
+    if (!this.watching) return;
+    const nodes = this.modelService.nodes();
+    const edges = this.modelService.edges();
+    console.log('[DiagramEditor] emitting diagramChanged, nodes=', nodes.length, 'edges=', edges.length);
+    this.diagramChanged.emit({ nodes, edges });
   }
 }
