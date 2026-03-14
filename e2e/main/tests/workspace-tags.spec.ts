@@ -1,8 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { cleanupAllWorkspaces } from './test-helpers';
 
 test.describe('Workspace Tags Feature', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/workspace/new');
+  });
+
+  test.afterEach(async ({ request }) => {
+    await cleanupAllWorkspaces(request);
   });
 
   test('should display tag input component', async ({ page }) => {

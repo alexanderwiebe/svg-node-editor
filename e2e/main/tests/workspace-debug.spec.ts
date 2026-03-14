@@ -1,4 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { cleanupAllWorkspaces } from './test-helpers';
+
+test.afterEach(async ({ request }) => {
+  await cleanupAllWorkspaces(request);
+});
 
 test('debug workspace save and store', async ({ page }) => {
   // Enable console logging

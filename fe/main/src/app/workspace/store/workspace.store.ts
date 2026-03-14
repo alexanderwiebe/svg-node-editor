@@ -3,7 +3,7 @@ import { signalStore, withComputed, withState, withMethods, patchState } from '@
 import { withDevtools } from '@angular-architects/ngrx-toolkit';
 import { initialWorkspaceState } from './workspace.state';
 import { selectAllWorkspaces, selectWorkspacesCount } from './workspace.selectors';
-import { Workspace } from '../models/workspace.model';
+import { Workspace, DiagramData, EMPTY_DIAGRAM } from '../models/workspace.model';
 import { WorkspaceApiService } from '../services/workspace-api.service';
 import { firstValueFrom } from 'rxjs';
 
@@ -79,6 +79,7 @@ export const WorkspaceStore = signalStore(
                 name: data.name,
                 tags: data.tags,
                 description: data.description,
+                diagram: EMPTY_DIAGRAM,
                 createdAt: new Date(),
                 updatedAt: new Date()
               };
@@ -154,6 +155,35 @@ export const WorkspaceStore = signalStore(
             }
           }, 500);
         });
+      }
+    },
+
+    async saveDiagram(workspaceId: string, diagram: DiagramData): Promise<void> {
+      // Optimistically update local store immediately so SPA navigation sees the latest state
+      // without waiting for the HTTP response.
+      patchState(store, (state) => {
+        const existing = state.workspaces.find(ws => ws.id === workspaceId);
+        if (!existing || JSON.stringify(existing.diagram) === JSON.stringify(diagram)) {
+          return state;
+        }
+        return {
+          workspaces: state.workspaces.map(ws =>
+            ws.id === workspaceId ? { ...ws, diagram, updatedAt: new Date() } : ws
+          )
+        };
+      });
+
+      if (!apiService.isBackendEnabled()) return;
+
+      try {
+        const updatedWorkspace = await firstValueFrom(apiService.update(workspaceId, { diagram }));
+        patchState(store, (state) => ({
+          workspaces: state.workspaces.map(ws =>
+            ws.id === workspaceId ? updatedWorkspace : ws
+          )
+        }));
+      } catch (error: any) {
+        console.error('Failed to save diagram:', error);
       }
     },
 

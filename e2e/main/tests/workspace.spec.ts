@@ -1,8 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { cleanupAllWorkspaces } from './test-helpers';
 
 test.describe('Workspace Management', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+  });
+
+  test.afterEach(async ({ request }) => {
+    await cleanupAllWorkspaces(request);
   });
 
   test('should display getting started pane on home page', async ({ page }) => {

@@ -6,10 +6,11 @@ import { randomUUID } from 'crypto';
 export class WorkspaceDataService {
   private workspaces: Map<string, Workspace> = new Map();
 
-  create(workspaceData: Omit<Workspace, 'id' | 'createdAt' | 'updatedAt'>): Workspace {
+  create(workspaceData: Omit<Workspace, 'id' | 'createdAt' | 'updatedAt' | 'diagram'> & { diagram?: Workspace['diagram'] }): Workspace {
     const workspace: Workspace = {
       id: randomUUID(),
       ...workspaceData,
+      diagram: workspaceData.diagram ?? { nodes: [], edges: [] },
       createdAt: new Date(),
       updatedAt: new Date(),
     };

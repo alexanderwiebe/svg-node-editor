@@ -1,19 +1,21 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Workspace } from '../models/workspace.model';
+import { Workspace, DiagramData } from '../models/workspace.model';
 import { environment } from '../../../environments/environment';
 
 export interface CreateWorkspaceDto {
   name: string;
   tags: string[];
   description: string;
+  diagram?: DiagramData;
 }
 
 export interface UpdateWorkspaceDto {
   name?: string;
   tags?: string[];
   description?: string;
+  diagram?: DiagramData;
 }
 
 @Injectable({

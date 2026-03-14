@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { cleanupAllWorkspaces } from './test-helpers';
 
 /**
  * Backend Integration E2E Tests
@@ -10,6 +11,10 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('Workspace Backend Integration', () => {
+  test.afterEach(async ({ request }) => {
+    await cleanupAllWorkspaces(request);
+  });
+
   test.describe('Basic Backend Operations', () => {
     test('should create workspace and verify it persists', async ({ page }) => {
       await page.goto('/workspace/new');

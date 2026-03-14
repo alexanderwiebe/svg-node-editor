@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { cleanupAllWorkspaces } from './test-helpers';
 
 test.describe('Search Functionality', () => {
+  test.afterEach(async ({ request }) => {
+    await cleanupAllWorkspaces(request);
+  });
+
   test.beforeEach(async ({ page }) => {
     // Create some test workspaces for searching
     await page.goto('/workspace/new');

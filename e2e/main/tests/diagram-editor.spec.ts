@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { cleanupAllWorkspaces } from './test-helpers';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOTS_DIR = path.join(__dirname, '../../../pr-screenshots');
@@ -36,6 +37,10 @@ async function dragPaletteItemToCanvas(
 test.describe('Diagram Editor', () => {
   test.beforeEach(async ({ page }) => {
     await createWorkspaceAndNavigate(page);
+  });
+
+  test.afterEach(async ({ request }) => {
+    await cleanupAllWorkspaces(request);
   });
 
   test('should show the palette and empty canvas', async ({ page }) => {
